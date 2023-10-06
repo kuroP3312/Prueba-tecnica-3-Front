@@ -3,7 +3,8 @@
 // The list of file replacements can be found in `angular.json`.
 
 export const environment = {
-  production: false
+    url: "http://prueba-tecnica-3-back.test:8080/",
+    production: false
 };
 
 /*

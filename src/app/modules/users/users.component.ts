@@ -1,6 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
+import { DataService } from '../services/data.service';
+import { User } from '../../utils/interfaces/user.interface';
+import * as CryptoJS from 'crypto-js';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 
 @Component({
   templateUrl: './users.component.html',
@@ -8,17 +12,23 @@ import { Table } from 'primeng/table';
 })
 export class UsersComponent implements OnInit {
 
-    productDialog: boolean = false;
+    @ViewChild('formElement') formElement: any;
+    @ViewChild('dt') table?: Table ;
+    createUserDialog: boolean = false;
+    editUserDialog: boolean = false;
 
-    deleteProductDialog: boolean = false;
+    deleteUserDialog: boolean = false;
 
-    deleteProductsDialog: boolean = false;
+    deleteUsersDialog: boolean = false;
 
-    products: [] = [];
+    public createUserForm!: FormGroup;
+    public editUserForm!: FormGroup;
 
-    product: any = {};
+    users: any[] = [];
 
-    selectedProducts: any[] = [];
+    user: any = {};
+
+    selectedUsers: any[] = [];
 
     submitted: boolean = false;
 
@@ -28,13 +38,19 @@ export class UsersComponent implements OnInit {
 
     rowsPerPageOptions = [5, 10, 20];
 
-    constructor( private messageService: MessageService) { }
+    constructor( private messageService: MessageService, private dataService: DataService,
+        private formBuilder: FormBuilder) { }
 
     ngOnInit() {
-        // this.productService.getProducts().then(data => this.products = data);
+        this.buildForm();
+
+        this.dataService.getUsers().subscribe((res: any)=>{
+            console.log(res);
+            this.users = res.response;
+        });
 
         this.cols = [
-            { field: 'product', header: 'Product' },
+            { field: 'user', header: 'User' },
             { field: 'price', header: 'Price' },
             { field: 'category', header: 'Category' },
             { field: 'rating', header: 'Reviews' },
@@ -42,89 +58,86 @@ export class UsersComponent implements OnInit {
         ];
     }
 
+    private buildForm(): void {
+        this.createUserForm = this.formBuilder.group({
+            name: ['', Validators.required],
+            password: ['', Validators.required],
+            email: ['', Validators.required],
+        });
+        this.editUserForm = this.formBuilder.group({
+            name: ['', Validators.required],
+            email: ['', Validators.required],
+            id: ['', Validators.required],
+        });
+    }
+
     openNew() {
-        // this.product = {};
+        this.user = {};
         this.submitted = false;
-        this.productDialog = true;
+        this.createUserDialog = true;
     }
 
-    deleteSelectedProducts() {
-        this.deleteProductsDialog = true;
+    deleteSelectedUsers() {
+        this.deleteUsersDialog = true;
     }
 
-    editProduct(product: any) {
-        // this.product = { ...product };
-        // this.productDialog = true;
+    editUser(user: any) {
+        this.user = { ...user };
+        this.editUserDialog = true;
     }
 
-    deleteProduct(product: any) {
-        // this.deleteProductDialog = true;
-        // this.product = { ...product };
+    deleteUser(user: any) {
+        this.deleteUserDialog = true;
+        this.user = { ...user };
     }
 
     confirmDeleteSelected() {
-        // this.deleteProductsDialog = false;
-        // this.products = this.products.filter(val => !this.selectedProducts.includes(val));
-        // this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Products Deleted', life: 3000 });
-        // this.selectedProducts = [];
+        this.deleteUsersDialog = false;
+        this.users = this.users.filter(val => !this.selectedUsers.includes(val));
+        this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Users Deleted', life: 3000 });
+        this.selectedUsers = [];
     }
 
     confirmDelete() {
-        // this.deleteProductDialog = false;
-        // this.products = this.products.filter(val => val.id !== this.product.id);
-        // this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Product Deleted', life: 3000 });
-        // this.product = {};
+        this.deleteUserDialog = false;
+        this.users = this.users.filter(val => val.id !== this.user.id);
+        this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Deleted', life: 3000 });
+        this.user = {};
     }
 
-    hideDialog() {
-        this.productDialog = false;
+    hideCreateDialog() {
+        this.createUserDialog = false;
         this.submitted = false;
     }
 
-    saveProduct() {
-        // this.submitted = true;
-
-        // if (this.product.name?.trim()) {
-        //     if (this.product.id) {
-        //         // @ts-ignore
-        //         this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value : this.product.inventoryStatus;
-        //         this.products[this.findIndexById(this.product.id)] = this.product;
-        //         this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Product Updated', life: 3000 });
-        //     } else {
-        //         this.product.id = this.createId();
-        //         this.product.code = this.createId();
-        //         this.product.image = 'product-placeholder.svg';
-        //         // @ts-ignore
-        //         this.product.inventoryStatus = this.product.inventoryStatus ? this.product.inventoryStatus.value : 'INSTOCK';
-        //         this.products.push(this.product);
-        //         this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Product Created', life: 3000 });
-        //     }
-
-        //     this.products = [...this.products];
-        //     this.productDialog = false;
-        //     this.product = {};
-        // }
+    hideEditDialog() {
+        this.editUserDialog = false;
+        this.submitted = false;
     }
 
-    // findIndexById(id: string): number {
-    //     let index = -1;
-    //     for (let i = 0; i < this.products.length; i++) {
-    //         if (this.products[i].id === id) {
-    //             index = i;
-    //             break;
-    //         }
-    //     }
+    saveUser() {
+        this.dataService.createUser(this.createUserForm.value).subscribe({
+            next: (res) => {
+                this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Usuario creado con exito!', life: 3000 });
+            },
+            error:() => {
+                this.messageService.add({ severity: 'error', summary: 'Successful', detail: 'Algo salio mal!', life: 3000 });
+            }
+        });
+        this.createUserDialog = false;
+    }
 
-    //     return index;
-    // }
-
-    createId(): string {
-        let id = '';
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < 5; i++) {
-            id += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return id;
+    updateUser(){
+        console.log(this.editUserForm.value)
+        this.dataService.editUser(this.editUserForm.value).subscribe({
+            next: (res) => {
+                this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Usuario actualizado con exito!', life: 3000 });
+            },
+            error:() => {
+                this.messageService.add({ severity: 'error', summary: 'Successful', detail: 'Algo salio mal!', life: 3000 });
+            }
+        });
+        this.editUserDialog = false;
     }
 
     onGlobalFilter(table: Table, event: Event) {
